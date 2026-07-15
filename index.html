@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Math Quest — Prealgebra Practice</title>
+<style>
+  :root{
+    --bg1:#4f46e5; --bg2:#7c3aed; --bg3:#ec4899;
+    --card:#ffffff; --ink:#1f2937; --muted:#6b7280;
+    --green:#16a34a; --greenbg:#dcfce7;
+    --red:#dc2626; --redbg:#fee2e2;
+    --gold:#f59e0b; --goldbg:#fef3c7;
+    --blue:#2563eb; --bluebg:#dbeafe;
+    --purple:#7c3aed; --purplebg:#ede9fe;
+    --line:#e5e7eb;
+    --shadow:0 10px 30px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Comic Sans MS","Comic Sans",system-ui,sans-serif;
+    color:var(--ink);
+    background:linear-gradient(135deg,var(--bg1),var(--bg2) 55%,var(--bg3));
+    background-attachment:fixed;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:18px 16px 60px}
+  .card{background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:22px}
+  button{font-family:inherit;cursor:pointer;border:none}
+  .hidden{display:none !important}
+
+  /* Top bar */
+  .topbar{display:flex;align-items:center;gap:12px;color:#fff;margin:6px 4px 16px;flex-wrap:wrap}
+  .logo{font-size:26px;font-weight:800;letter-spacing:.3px;display:flex;align-items:center;gap:8px}
+  .logo .spark{filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+  .stats{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .pill{background:rgba(255,255,255,.18);backdrop-filter:blur(6px);padding:8px 14px;border-radius:999px;font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.25)}
+
+  /* Home */
+  .hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .mascot{font-size:64px;line-height:1;animation:bob 3s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
+  h1{font-size:30px;margin:0 0 4px}
+  h2{font-size:22px;margin:0 0 12px}
+  .sub{color:var(--muted);font-size:16px;margin:0}
+
+  .countdown{margin:18px 0;padding:16px 18px;border-radius:18px;background:var(--goldbg);border:2px solid #fcd34d;display:flex;align-items:center;gap:14px}
+  .countdown .big{font-size:40px;font-weight:900;color:#b45309;line-height:1}
+  .countdown .lbl{font-weight:700;color:#92400e}
+  .countdown .note{color:#a16207;font-size:14px;margin-top:2px}
+
+  .xpwrap{margin:16px 0}
+  .xprow{display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px;font-size:15px}
+  .xpbar{height:16px;background:#eef2ff;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .xpfill{height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);width:0;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+
+  .cta{width:100%;margin-top:8px;background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;font-size:22px;font-weight:800;padding:18px;border-radius:18px;box-shadow:0 8px 20px rgba(249,115,22,.4);transition:transform .12s}
+  .cta:hover{transform:translateY(-2px)}
+  .cta:active{transform:translateY(1px)}
+  .cta.done{background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 8px 20px rgba(22,163,74,.35)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+  .mini{background:#f9fafb;border:1px solid var(--line);border-radius:16px;padding:16px}
+  .mini h3{margin:0 0 8px;font-size:16px}
+
+  .streakdays{display:flex;gap:6px;flex-wrap:wrap}
+  .day{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;background:#eef2ff;color:#94a3b8;border:1px solid var(--line)}
+  .day.done{background:var(--greenbg);color:var(--green);border-color:#86efac}
+  .day.today{outline:3px solid #fcd34d;outline-offset:1px}
+
+  .badges{display:flex;gap:10px;flex-wrap:wrap}
+  .badge{width:60px;text-align:center;font-size:12px;color:var(--muted)}
+  .badge .ic{font-size:34px;filter:grayscale(1);opacity:.35;transition:.2s}
+  .badge.earned .ic{filter:none;opacity:1;animation:pop .4s}
+  .badge.earned{color:var(--ink);font-weight:700}
+  @keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+  /* Quiz */
+  .qtop{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .progress{flex:1;height:14px;background:#eef2ff;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .progfill{height:100%;background:linear-gradient(90deg,#6366f1,#a855f7);width:0;transition:width .4s}
+  .qcount{font-weight:800;color:var(--muted);white-space:nowrap}
+  .cattag{display:inline-block;background:var(--purplebg);color:var(--purple);font-weight:800;font-size:13px;padding:6px 12px;border-radius:999px;margin-bottom:10px}
+  .qtext{font-size:24px;font-weight:700;line-height:1.5;margin:6px 0 18px}
+  .qtext sup{font-size:.7em}
+  .frac{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;margin:0 3px}
+  .frac .n{border-bottom:2px solid var(--ink);padding:0 6px;line-height:1.2}
+  .frac .d{padding:0 6px;line-height:1.2}
+  .ansrow{display:flex;gap:10px;flex-wrap:wrap}
+  input.answer{flex:1;min-width:180px;font-size:22px;padding:14px 16px;border-radius:14px;border:2px solid var(--line);outline:none;font-family:inherit;transition:.15s}
+  input.answer:focus{border-color:var(--blue);box-shadow:0 0 0 4px var(--bluebg)}
+  .btn{font-size:18px;font-weight:800;padding:14px 22px;border-radius:14px;color:#fff;background:var(--blue);transition:transform .1s}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:#eef2ff;color:var(--blue)}
+  .btn.skip{background:#f3f4f6;color:var(--muted)}
+  .hintbtn{background:none;color:var(--purple);font-weight:700;font-size:14px;margin-top:12px;text-decoration:underline;padding:4px}
+  .hintbox{margin-top:12px;background:var(--purplebg);border-radius:14px;padding:14px 16px;color:#5b21b6;font-size:15px;line-height:1.5}
+  .feedback{margin-top:16px;border-radius:16px;padding:16px 18px;font-size:17px;font-weight:600;display:none;animation:slidein .3s}
+  @keyframes slidein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .feedback.good{background:var(--greenbg);color:#166534;display:block;border:2px solid #86efac}
+  .feedback.bad{background:var(--redbg);color:#991b1b;display:block;border:2px solid #fca5a5}
+  .feedback .ans{font-weight:800}
+  .keypad{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .keypad button{background:#eef2ff;color:var(--ink);border-radius:10px;padding:8px 12px;font-size:16px;font-weight:700;min-width:30px}
+  .keypad button:hover{background:#e0e7ff}
+
+  /* Results */
+  .scorebig{text-align:center;padding:8px 0}
+  .scorenum{font-size:64px;font-weight:900;line-height:1}
+  .starsrow{font-size:38px;letter-spacing:4px;margin:8px 0}
+  .review{margin-top:16px}
+  .ritem{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .ritem.ok{background:var(--greenbg);border-color:#86efac}
+  .ritem.no{background:#fff7ed;border-color:#fed7aa}
+  .ritem .q{font-weight:700;margin-bottom:4px}
+  .ritem .meta{font-size:14px;color:var(--muted)}
+  .ritem .meta b{color:var(--ink)}
+
+  footer{text-align:center;color:rgba(255,255,255,.85);font-size:13px;margin-top:24px}
+  .link{background:none;color:#fff;text-decoration:underline;font-weight:700;font-size:14px}
+
+  /* confetti */
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<div class="wrap">
+  <div class="topbar">
+    <div class="logo"><span class="spark">✨</span> Math Quest</div>
+    <div class="stats">
+      <div class="pill">⭐ <span id="statStars">0</span></div>
+      <div class="pill">🔥 <span id="statStreak">0</span> day</div>
+      <div class="pill">🏅 Lv <span id="statLevel">1</span></div>
+    </div>
+  </div>
+
+  <!-- ================= HOME ================= -->
+  <div id="home" class="card">
+    <div class="hero">
+      <div class="mascot">🦉</div>
+      <div>
+        <h1>Hi Advik! 👋</h1>
+        <p class="sub" id="homeSub">Ready to level up your prealgebra powers?</p>
+      </div>
+    </div>
+
+    <div class="countdown">
+      <div>
+        <div class="big" id="cdDays">10</div>
+      </div>
+      <div>
+        <div class="lbl">days until your test 📝</div>
+        <div class="note" id="cdNote">One practice test a day keeps the worries away!</div>
+      </div>
+    </div>
+
+    <div class="xpwrap">
+      <div class="xprow"><span>Level <span id="xpLevel">1</span></span><span><span id="xpNow">0</span>/<span id="xpNeed">100</span> XP</span></div>
+      <div class="xpbar"><div class="xpfill" id="xpFill"></div></div>
+    </div>
+
+    <button class="cta" id="startBtn" onclick="startTest()">🚀 Start Today's Test</button>
+
+    <div class="grid2">
+      <div class="mini">
+        <h3>🔥 Your 10-Day Streak</h3>
+        <div class="streakdays" id="streakDays"></div>
+      </div>
+      <div class="mini">
+        <h3>🏆 Best score</h3>
+        <div style="font-size:34px;font-weight:900" id="bestScore">—</div>
+        <div class="sub" style="font-size:13px" id="testsTaken">0 tests taken</div>
+      </div>
+    </div>
+
+    <div class="mini" style="margin-top:14px">
+      <h3>🎖️ Badges</h3>
+      <div class="badges" id="badges"></div>
+    </div>
+
+    <div style="text-align:center;margin-top:16px">
+      <button class="link" onclick="resetAll()" style="color:#9ca3af">Reset all progress</button>
+    </div>
+  </div>
+
+  <!-- ================= QUIZ ================= -->
+  <div id="quiz" class="card hidden">
+    <div class="qtop">
+      <div class="progress"><div class="progfill" id="progFill"></div></div>
+      <div class="qcount"><span id="qNum">1</span>/<span id="qTotal">15</span></div>
+    </div>
+    <div class="cattag" id="catTag">Fundamentals</div>
+    <div class="qtext" id="qText"></div>
+    <div class="ansrow">
+      <input class="answer" id="ansInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer…" onkeydown="if(event.key==='Enter')checkAnswer()">
+      <button class="btn" id="checkBtn" onclick="checkAnswer()">Check ✓</button>
+    </div>
+    <div class="keypad" id="keypad">
+      <button onclick="ins('/')">a/b</button>
+      <button onclick="ins('^')">xʸ</button>
+      <button onclick="ins('-')">−</button>
+      <button onclick="ins('.')">.</button>
+      <button onclick="clearAns()">⌫ clear</button>
+    </div>
+    <div><button class="hintbtn" id="hintBtn" onclick="showHint()">💡 Need a hint?</button></div>
+    <div class="hintbox hidden" id="hintBox"></div>
+    <div class="feedback" id="feedback"></div>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button class="btn ghost hidden" id="nextBtn" onclick="nextQuestion()">Next →</button>
+      <button class="btn skip" id="skipBtn" onclick="skipQuestion()">Skip</button>
+    </div>
+  </div>
+
+  <!-- ================= RESULTS ================= -->
+  <div id="results" class="card hidden">
+    <div class="scorebig">
+      <div class="mascot" id="resMascot" style="font-size:56px">🎉</div>
+      <div class="scorenum" id="resScore">0/15</div>
+      <div class="starsrow" id="resStars"></div>
+      <p class="sub" id="resMsg"></p>
+      <div class="pill" style="display:inline-flex;background:var(--goldbg);color:#b45309;border-color:#fcd34d">+<span id="resXp">0</span> XP earned</div>
+    </div>
+    <div id="newBadges" style="text-align:center;margin:14px 0"></div>
+    <h2 style="margin-top:18px">📋 Review</h2>
+    <div class="review" id="review"></div>
+    <button class="cta done" onclick="goHome()">🏠 Back to Home</button>
+  </div>
+
+  <footer>Made for Advik • Practice a little every day 💪</footer>
+</div>
+
+<script>
+/* ============================================================
+   MATH ENGINE — random problem generators
+   Every generator returns:
+   { cat, section, html, answer (number), display (string), hint, tol }
+   The answer checker parses fractions / mixed numbers / powers /
+   decimals and compares the numeric value, so kids can answer in
+   whatever form is natural.
+   ============================================================ */
+const R=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1}
+function lcm(a,b){return Math.abs(a*b)/gcd(a,b)}
+function simp(n,d){const g=gcd(n,d)*(d<0?-1:1);return[n/g,d/g]}
+function fracHTML(n,d){return `<span class="frac"><span class="n">${n}</span><span class="d">${d}</span></span>`}
+function mixedStr(n,d){ // string like "1 1/12" or "5/8" or "3"
+  [n,d]=simp(n,d);
+  if(d===1) return `${n}`;
+  const w=Math.trunc(n/d), r=Math.abs(n%d);
+  if(w!==0 && r!==0) return `${w} ${r}/${d}`;
+  return `${n}/${d}`;
+}
+
+/* ---- Fundamentals ---- */
+function gExpBasic(){
+  const t=R(0,2);
+  if(t===0){const n=R(3,7);return{cat:"Exponents",section:"Fundamentals",html:`Compute: 2<sup>${n}</sup>`,answer:2**n,display:`${2**n}`,hint:`2<sup>${n}</sup> means multiply 2 by itself ${n} times.`,tol:.001};}
+  if(t===1){const a=R(3,7),b=R(2,a-1);return{cat:"Exponents",section:"Fundamentals",html:`Compute: (−${a})<sup>2</sup> − ${b}<sup>2</sup>`,answer:a*a-b*b,display:`${a*a-b*b}`,hint:`A negative squared is positive: (−${a})² = ${a*a}.`,tol:.001};}
+  const a=R(2,4);const val=1+1/(a*a);return{cat:"Exponents",section:"Fundamentals",html:`Compute: ${a}<sup>0</sup> + ${a}<sup>−2</sup>  &nbsp;(fraction or decimal)`,answer:val,display:mixedStr(a*a+1,a*a),hint:`Anything to the 0 power is 1. And ${a}<sup>−2</sup> = 1/${a*a}.`,tol:.01};
+}
+function gExpLaws(){
+  const t=R(0,2),a=R(2,6),b=R(2,5);
+  let e,html;
+  if(t===0){e=a+b;html=`Express as a power of 2: 2<sup>${a}</sup> · 2<sup>${b}</sup>`;}
+  else if(t===1){const hi=a+b, lo=b;e=hi-lo;html=`Express as a power of 2: ${fracHTML('2<sup>'+hi+'</sup>','2<sup>'+lo+'</sup>')}`;}
+  else{e=a*b;html=`Express as a power of 2: (2<sup>${a}</sup>)<sup>${b}</sup>`;}
+  return{cat:"Exponent Laws",section:"Fundamentals",html,answer:2**e,display:`2^${e}  (= ${2**e})`,hint:`Multiplying powers → add exponents. Dividing → subtract. Power of a power → multiply. You can type it as 2^${e}.`,tol:.001};
+}
+function gGCDLCM(){
+  if(Math.random()<.5){
+    const g=pick([4,6,8,9,12]),a=g*R(2,6),b=g*R(2,6);
+    return{cat:"Number Theory",section:"Fundamentals",html:`Find the greatest common divisor of ${a} and ${b}.`,answer:gcd(a,b),display:`${gcd(a,b)}`,hint:`List the factors of each and find the biggest one they share.`,tol:.001};
+  }
+  const a=R(4,18),b=R(4,18);
+  return{cat:"Number Theory",section:"Fundamentals",html:`Find the least common multiple of ${a} and ${b}.`,answer:lcm(a,b),display:`${lcm(a,b)}`,hint:`The LCM is a·b ÷ GCD(a,b).`,tol:.001};
+}
+function gFrac(){
+  const t=R(0,3);
+  if(t===0){ // a/b + c/d - e/f
+    const b=pick([2,3,4,6]),d=pick([3,4,6,8]),f=pick([2,4,6]);
+    const a=R(1,b-1),c=R(1,d),e=R(1,f-1);
+    const L=lcm(lcm(b,d),f);
+    const num=a*(L/b)+c*(L/d)-e*(L/f);
+    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${fracHTML(a,b)} + ${fracHTML(c,d)} − ${fracHTML(e,f)}`,answer:num/L,display:mixedStr(num,L),hint:`Find a common denominator (${L}), rewrite each fraction, then add & subtract.`,tol:.01};
+  }
+  if(t===1){ // product of three
+    const a=[R(1,4),R(2,5),R(1,4)],b=[R(2,5),R(3,6),R(2,6)];
+    let n=a[0]*a[1]*a[2],d=b[0]*b[1]*b[2];
+    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${fracHTML(a[0],b[0])} · ${fracHTML(a[1],b[1])} · ${fracHTML(a[2],b[2])}`,answer:n/d,display:mixedStr(n,d),hint:`Multiply the tops together and the bottoms together, then simplify.`,tol:.01};
+  }
+  if(t===2){ // integer ÷ fraction
+    const w=R(4,12),n=R(2,5),d=R(2,6);
+    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${w} ÷ ${fracHTML(n,d)}`,answer:w*d/n,display:mixedStr(w*d,n),hint:`Dividing by a fraction = multiplying by its flip: ${w} · ${fracHTML(d,n)}.`,tol:.01};
+  }
+  // mixed - mixed
+  const w1=R(4,8),f1=R(1,3),w2=R(1,w1-1),f2=R(1,3),D=pick([3,4,6]);
+  const n1=w1*D+f1, n2=w2*D+f2;
+  return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${w1}${fracHTML(f1,D)} − ${w2}${fracHTML(f2,D)}`,answer:(n1-n2)/D,display:mixedStr(n1-n2,D),hint:`Turn both into improper fractions over ${D}, subtract, then convert back.`,tol:.01};
+}
+function gDec2Frac(){
+  const opts=[[0.5,1,2],[0.25,1,4],[0.75,3,4],[0.2,1,5],[0.6,3,5],[0.8,4,5],[0.125,1,8],[0.375,3,8],[0.625,5,8],[0.05,1,20],[0.15,3,20],[0.04,1,25],[0.35,7,20]];
+  const o=pick(opts);
+  return{cat:"Decimals ↔ Fractions",section:"Fundamentals",html:`Convert to a fraction in simplest form: ${o[0]}`,answer:o[1]/o[2],display:`${o[1]}/${o[2]}`,hint:`Write it over a power of 10, then divide top & bottom by their GCF.`,tol:.005};
+}
+function gFrac2Dec(){
+  const opts=[[13,4,3.25],[7,20,0.35],[1,8,0.125],[3,5,0.6],[9,4,2.25],[5,8,0.625],[7,10,0.7],[11,20,0.55],[3,8,0.375],[9,20,0.45]];
+  const o=pick(opts);
+  return{cat:"Decimals ↔ Fractions",section:"Fundamentals",html:`Convert to a decimal: ${fracHTML(o[0],o[1])}`,answer:o[2],display:`${o[2]}`,hint:`Divide the top by the bottom (long division).`,tol:.005};
+}
+function gLinear(){
+  if(Math.random()<.5){ // ar - b = c - dr
+    const r=R(1,6),a=R(2,5),d=R(2,5),b=R(1,9);
+    const c=a*r-b+d*r; // ensures solution r
+    return{cat:"Linear Equations",section:"Fundamentals",html:`Solve for r: &nbsp; ${a}r − ${b} = ${c} − ${d}r`,answer:r,display:`r = ${r}`,hint:`Get all the r's on one side and the numbers on the other, then divide.`,tol:.01};
+  }
+  const x=R(2,9),a=R(2,5),b=R(1,12); // ax + b
+  const c=a*x+b;
+  return{cat:"Linear Equations",section:"Fundamentals",html:`Solve for x: &nbsp; ${a}x + ${b} = ${c}`,answer:x,display:`x = ${x}`,hint:`Subtract ${b} from both sides, then divide by ${a}.`,tol:.01};
+}
+function gRatio(){
+  const t=R(0,2);
+  if(t===0){const a=R(2,6),b=R(2,7),parts=R(6,16);const tot=(a+b)*parts;
+    return{cat:"Ratios & Rates",section:"Fundamentals",html:`The ratio of dogs to cats at a shelter is ${a} to ${b}. If there are ${tot} animals in all, how many are dogs?`,answer:a*parts,display:`${a*parts} dogs`,hint:`There are ${a+b} equal parts. Each part = ${tot} ÷ ${a+b}.`,tol:.001};
+  }
+  if(t===1){const sec=pick([60,72,75,90,120]),hrs=2;const mi=hrs*3600/sec;
+    return{cat:"Ratios & Rates",section:"Fundamentals",html:`A train travels 1 mile every ${sec} seconds. How many miles will it travel in ${hrs} hours?`,answer:mi,display:`${mi} miles`,hint:`${hrs} hours = ${hrs*3600} seconds. Divide by ${sec}.`,tol:.01};
+  }
+  const rate=pick([3,4,5,6]),cost=R(2,6);const units=R(6,14);
+  return{cat:"Ratios & Rates",section:"Fundamentals",html:`If ${rate} notebooks cost $${rate*cost}, how much do ${units} notebooks cost (same price each)?`,answer:units*cost,display:`$${units*cost}`,hint:`First find the price of ONE notebook: $${rate*cost} ÷ ${rate} = $${cost}.`,tol:.01};
+}
+
+/* ---- Problem Solving ---- */
+function gSeries(){
+  const step=pick([5,10,3,4]),n=R(8,20),first=step;
+  const last=step*n, sum=n*(first+last)/2;
+  return{cat:"Problem Solving",section:"Problem Solving",html:`What is the value of the sum ${first} + ${2*step} + ${3*step} + ⋯ + ${last}?`,answer:sum,display:`${sum}`,hint:`There are ${n} terms. Sum = (first + last) × count ÷ 2.`,tol:.001};
+}
+function gPowerOf4(){
+  // 2^a · 8^b · 16^c  as power of 4 -> total exp of 2 = a+3b+4c, /2
+  let a,b,c,e2;
+  do{a=R(2,8);b=R(1,4);c=R(1,3);e2=a+3*b+4*c;}while(e2%2!==0);
+  const e4=e2/2;
+  return{cat:"Problem Solving",section:"Problem Solving",html:`Express 2<sup>${a}</sup> · 8<sup>${b}</sup> · 16<sup>${c}</sup> as a power of 4.`,answer:4**e4,display:`4^${e4}  (= ${4**e4})`,hint:`Write everything as a power of 2 (8=2³, 16=2⁴), add the exponents, then halve for base 4. Type it as 4^${e4}.`,tol:.001};
+}
+function gNumberPuzzle(){
+  const x=R(11,98),dd=pick([3,5,7,9]); // append digit dd
+  const N=9*x+dd; // new = x + N ... 10x+dd = x+N
+  return{cat:"Problem Solving",section:"Problem Solving",html:`Aria writes a two-digit number, then writes a ${dd} at the end to make a three-digit number. The new number is ${N} more than her original number. What was her original number?`,answer:x,display:`${x}`,hint:`If the number is x, the new number is 10x+${dd}. Set 10x+${dd} = x+${N}.`,tol:.001};
+}
+function gAddNumDen(){
+  const a=R(1,3),b=R(a+3,12);
+  // (a+k)/(b+k)=p/q with q>p, integer k
+  let p,q,k;
+  for(let tries=0;tries<40;tries++){q=R(2,5);p=R(1,q-1);k=(b*p-a*q)/(q-p);if(Number.isInteger(k)&&k>0){break}k=null}
+  if(k===null){return gAddNumDen()}
+  return{cat:"Problem Solving",section:"Problem Solving",html:`Kayla adds the same number to both the top and bottom of ${fracHTML(a,b)}. Her new fraction equals ${fracHTML(p,q)}. What number did she add?`,answer:k,display:`${k}`,hint:`Let the number be n. Then (${a}+n)/(${b}+n) = ${p}/${q}. Cross-multiply and solve.`,tol:.01};
+}
+function gWorkRate(){
+  const w=R(4,6),d=R(12,24); // total = w*d
+  const total=w*d;
+  let a,f,t,rem;
+  for(let i=0;i<50;i++){a=R(2,4);f=R(4,10);t=a+pick([6,8,10,11]);rem=total-a*f;if(rem>0 && rem%t===0){break}rem=-1}
+  if(rem<=0)return gWorkRate();
+  return{cat:"Problem Solving",section:"Problem Solving",html:`${w} workers can build a road in ${d} days (all work equally fast). ${a} workers work for ${f} days, then ${t-a} more join. How many more days to finish?`,answer:rem/t,display:`${rem/t} more days`,hint:`Total work = ${w}×${d} = ${total} worker-days. Done so far = ${a}×${f}. Divide what's left by ${t} workers.`,tol:.01};
+}
+function gAvgSpeed(){
+  const pairs=[[50,40],[60,40],[30,60],[45,55],[40,60],[50,75]];
+  const[v1,v2]=pick(pairs);const d=pick([120,240,300,324,360]);
+  const avg=Math.round((2*v1*v2/(v1+v2))*10)/10;
+  return{cat:"Problem Solving",section:"Problem Solving",html:`A train goes ${d} miles at ${v1} mph, then returns ${d} miles at ${v2} mph. To the nearest tenth, what is its average speed for the whole round trip?`,answer:avg,display:`${avg} mph`,hint:`Average speed = total distance ÷ total time. Time = distance ÷ speed for each leg. (It is NOT just the average of the two speeds!)`,tol:.15};
+}
+function gDivisible(){
+  // n-digit puzzle: 3 A 4 divisible by 9 style -> find digit
+  const known=[R(1,9),R(0,9)],div=pick([3,9]);
+  const s=known[0]+known[1];
+  let m=div-(s%div);if(m===div)m=0; // digit to complete
+  return{cat:"Problem Solving",section:"Problem Solving",html:`The number ${known[0]}_${known[1]} (a 3-digit number with a missing middle digit) is divisible by ${div}. What is the smallest missing digit that works?`,answer:m,display:`${m}`,hint:`A number is divisible by ${div} when its digit sum is divisible by ${div}. So far the digits add to ${s}.`,tol:.001};
+}
+
+const FUND=[gExpBasic,gExpLaws,gGCDLCM,gFrac,gFrac,gDec2Frac,gFrac2Dec,gLinear,gRatio];
+const PROB=[gSeries,gPowerOf4,gNumberPuzzle,gAddNumDen,gWorkRate,gAvgSpeed,gDivisible];
+
+function buildTest(){
+  const qs=[];
+  // 9 fundamentals (guarantee variety), 6 problem solving
+  const fpool=[gExpBasic,gExpLaws,gGCDLCM,gFrac,gDec2Frac,gFrac2Dec,gLinear,gRatio,pick(FUND)];
+  const ppool=[...PROB];
+  // shuffle problem-solving, take 6
+  ppool.sort(()=>Math.random()-.5);
+  fpool.forEach(g=>qs.push(g()));
+  ppool.slice(0,6).forEach(g=>qs.push(g()));
+  return qs;
+}
+
+/* ============================================================
+   ANSWER CHECKER
+   ============================================================ */
+function parseVal(s){
+  if(s==null)return NaN;
+  s=(''+s).trim().toLowerCase().replace(/\s+/g,' ').replace(/[$,]/g,'');
+  s=s.replace(/\s*(miles?|mph|dogs?|cats?|days?|notebooks?)\b/g,'');
+  s=s.replace(/^[a-z]\s*=\s*/,'');       // strip "r = " / "x=" prefix
+  s=s.replace(/\(=.*$/,'').trim();        // strip trailing "(= ...)" note
+  s=s.replace(/[a-z]+$/,'').trim();       // strip any trailing units/words
+  if(s==='')return NaN;
+  // power a^b
+  let m=s.match(/^(-?\d+(?:\.\d+)?)\s*\^\s*(-?\d+)$/);
+  if(m)return Math.pow(parseFloat(m[1]),parseInt(m[2]));
+  // mixed number  "w n/d"
+  m=s.match(/^(-?\d+)\s+(\d+)\/(\d+)$/);
+  if(m){const w=parseInt(m[1]),n=parseInt(m[2]),d=parseInt(m[3]);return w+(w<0?-1:1)*n/d;}
+  // fraction n/d
+  m=s.match(/^(-?\d+)\/(-?\d+)$/);
+  if(m)return parseInt(m[1])/parseInt(m[2]);
+  const v=parseFloat(s);
+  return isNaN(v)?NaN:v;
+}
+function isCorrect(userStr,q){
+  const v=parseVal(userStr);
+  if(isNaN(v))return false;
+  return Math.abs(v-q.answer)<=(q.tol||.01);
+}
+
+/* ============================================================
+   STATE / STORAGE
+   ============================================================ */
+const KEY='mathquest_advik_v1';
+const DEFAULT={stars:0,xp:0,level:1,streak:0,lastDay:null,days:[],best:0,tests:0,badges:{}};
+let S=load();
+function load(){try{return Object.assign({},DEFAULT,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){return Object.assign({},DEFAULT)}}
+function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+function todayStr(){return new Date().toISOString().slice(0,10)}
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/864e5)}
+
+const BADGES=[
+  {id:'first',ic:'🌟',name:'First Test'},
+  {id:'perfect',ic:'💯',name:'Perfect!'},
+  {id:'streak3',ic:'🔥',name:'3-Day Streak'},
+  {id:'streak5',ic:'⚡',name:'5-Day Streak'},
+  {id:'streak7',ic:'👑',name:'7-Day Streak'},
+  {id:'sharp',ic:'🎯',name:'Sharp (≥12)'},
+  {id:'level5',ic:'🚀',name:'Level 5'},
+];
+
+function xpNeeded(lvl){return 100+ (lvl-1)*50}
+
+/* ============================================================
+   RENDER HOME
+   ============================================================ */
+let quiz=null,qi=0,answered=false,todayScore=0,sessionResults=[];
+
+function renderHome(){
+  document.getElementById('statStars').textContent=S.stars;
+  document.getElementById('statStreak').textContent=S.streak;
+  document.getElementById('statLevel').textContent=S.level;
+  document.getElementById('xpLevel').textContent=S.level;
+  const need=xpNeeded(S.level);
+  document.getElementById('xpNow').textContent=S.xp;
+  document.getElementById('xpNeed').textContent=need;
+  document.getElementById('xpFill').style.width=Math.min(100,S.xp/need*100)+'%';
+  document.getElementById('bestScore').textContent=S.tests?`${S.best}/15`:'—';
+  document.getElementById('testsTaken').textContent=`${S.tests} test${S.tests===1?'':'s'} taken`;
+
+  // countdown: test day = 10 days from first ever day, but simpler: fixed target based on install
+  if(!S.testDate){const t=new Date();t.setDate(t.getDate()+10);S.testDate=t.toISOString().slice(0,10);save();}
+  let left=daysBetween(todayStr(),S.testDate);
+  if(left<0)left=0;
+  document.getElementById('cdDays').textContent=left;
+  document.getElementById('cdNote').textContent = left===0?"It's test day — you've got this! 🍀":(left<=3?"Almost there — keep sharp!":"One practice test a day keeps the worries away!");
+
+  // streak day boxes (10)
+  const sd=document.getElementById('streakDays');sd.innerHTML='';
+  const done=new Set(S.days);
+  const startAnchor=new Date(S.testDate);startAnchor.setDate(startAnchor.getDate()-10);
+  for(let i=0;i<10;i++){
+    const d=new Date(startAnchor);d.setDate(d.getDate()+i+1);
+    const ds=d.toISOString().slice(0,10);
+    const el=document.createElement('div');el.className='day';
+    el.textContent=i+1;
+    if(done.has(ds))el.classList.add('done');
+    if(ds===todayStr())el.classList.add('today');
+    sd.appendChild(el);
+  }
+
+  // badges
+  const bc=document.getElementById('badges');bc.innerHTML='';
+  BADGES.forEach(b=>{
+    const el=document.createElement('div');el.className='badge'+(S.badges[b.id]?' earned':'');
+    el.innerHTML=`<div class="ic">${b.ic}</div>${b.name}`;bc.appendChild(el);
+  });
+
+  // already practiced today?
+  const btn=document.getElementById('startBtn');
+  if(S.days.includes(todayStr())){
+    btn.textContent='✅ Done today — Practice again';
+    btn.classList.add('done');
+  }else{
+    btn.textContent='🚀 Start Today\'s Test';
+    btn.classList.remove('done');
+  }
+}
+
+/* ============================================================
+   QUIZ FLOW
+   ============================================================ */
+function show(id){['home','quiz','results'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));window.scrollTo(0,0)}
+function startTest(){
+  quiz=buildTest();qi=0;todayScore=0;sessionResults=[];
+  document.getElementById('qTotal').textContent=quiz.length;
+  show('quiz');renderQ();
+}
+function renderQ(){
+  answered=false;
+  const q=quiz[qi];
+  document.getElementById('qNum').textContent=qi+1;
+  document.getElementById('progFill').style.width=(qi/quiz.length*100)+'%';
+  document.getElementById('catTag').textContent=q.section+' • '+q.cat;
+  document.getElementById('qText').innerHTML=q.html;
+  const inp=document.getElementById('ansInput');inp.value='';inp.disabled=false;inp.focus();
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('feedback').style.display='none';
+  document.getElementById('checkBtn').classList.remove('hidden');
+  document.getElementById('skipBtn').classList.remove('hidden');
+  document.getElementById('nextBtn').classList.add('hidden');
+  document.getElementById('hintBtn').classList.remove('hidden');
+  document.getElementById('hintBox').classList.add('hidden');
+}
+function ins(c){const i=document.getElementById('ansInput');i.value+=c;i.focus()}
+function clearAns(){const i=document.getElementById('ansInput');i.value='';i.focus()}
+function showHint(){document.getElementById('hintBox').innerHTML='💡 '+quiz[qi].hint;document.getElementById('hintBox').classList.remove('hidden');document.getElementById('hintBtn').classList.add('hidden')}
+
+function checkAnswer(){
+  if(answered)return;
+  const q=quiz[qi];const raw=document.getElementById('ansInput').value;
+  if(raw.trim()==='')return;
+  answered=true;
+  const ok=isCorrect(raw,q);
+  const fb=document.getElementById('feedback');
+  document.getElementById('ansInput').disabled=true;
+  document.getElementById('checkBtn').classList.add('hidden');
+  document.getElementById('skipBtn').classList.add('hidden');
+  document.getElementById('nextBtn').classList.remove('hidden');
+  if(ok){
+    todayScore++;
+    S.stars+=10;save();document.getElementById('statStars').textContent=S.stars;
+    fb.className='feedback good';
+    fb.innerHTML=pick(['🎉 Correct! +10 ⭐','✅ Nailed it! +10 ⭐','🌟 Awesome! +10 ⭐','💪 Yes! +10 ⭐'])+`<br><span class="ans">Answer: ${q.display}</span>`;
+    burst();
+  }else{
+    fb.className='feedback bad';
+    fb.innerHTML=`Not quite — that's okay, mistakes help us learn!<br><span class="ans">Correct answer: ${q.display}</span>`;
+  }
+  sessionResults.push({q,raw,ok});
+}
+function skipQuestion(){
+  const q=quiz[qi];sessionResults.push({q,raw:'(skipped)',ok:false});
+  nextQuestion();
+}
+function nextQuestion(){
+  qi++;
+  if(qi>=quiz.length)finishTest();
+  else renderQ();
+}
+
+/* ============================================================
+   RESULTS + REWARDS
+   ============================================================ */
+function finishTest(){
+  const today=todayStr();
+  const firstTimeToday=!S.days.includes(today);
+  // XP: 15 per correct + completion bonus
+  const xpGain=todayScore*15 + 20;
+  S.xp+=xpGain;
+  let leveled=false;
+  while(S.xp>=xpNeeded(S.level)){S.xp-=xpNeeded(S.level);S.level++;leveled=true}
+  S.tests++;
+  if(todayScore>S.best)S.best=todayScore;
+
+  // streak: only advance once per day
+  if(firstTimeToday){
+    if(S.lastDay && daysBetween(S.lastDay,today)===1)S.streak++;
+    else if(S.lastDay===today){}
+    else S.streak=1;
+    S.lastDay=today;
+    S.days.push(today);
+  }
+
+  // badges
+  const newly=[];
+  function grant(id){if(!S.badges[id]){S.badges[id]=true;newly.push(BADGES.find(b=>b.id===id))}}
+  grant('first');
+  if(todayScore===quiz.length)grant('perfect');
+  if(todayScore>=12)grant('sharp');
+  if(S.streak>=3)grant('streak3');
+  if(S.streak>=5)grant('streak5');
+  if(S.streak>=7)grant('streak7');
+  if(S.level>=5)grant('level5');
+  save();
+
+  // render results
+  const pct=todayScore/quiz.length;
+  document.getElementById('resScore').textContent=`${todayScore}/${quiz.length}`;
+  const stars=pct>=.9?3:pct>=.6?2:pct>=.3?1:0;
+  document.getElementById('resStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  document.getElementById('resXp').textContent=xpGain;
+  const mascot=pct>=.9?'🏆':pct>=.6?'🎉':pct>=.3?'💪':'🌱';
+  document.getElementById('resMascot').textContent=mascot;
+  document.getElementById('resMsg').textContent =
+    (leveled?`⬆️ Level up! You're now Level ${S.level}! `:'')+
+    (pct>=.9?'Outstanding work — you\'re test-ready!':pct>=.6?'Great job! A little more practice and you\'ll ace it.':pct>=.3?'Nice effort! Review the tricky ones below.':'Every expert started here. Try again tomorrow — you\'ll improve!');
+
+  const nb=document.getElementById('newBadges');
+  nb.innerHTML = newly.length?('🎖️ New badge'+(newly.length>1?'s':'')+': '+newly.map(b=>b.ic+' '+b.name).join('  ')):'';
+
+  const rv=document.getElementById('review');rv.innerHTML='';
+  sessionResults.forEach((r,i)=>{
+    const el=document.createElement('div');el.className='ritem '+(r.ok?'ok':'no');
+    el.innerHTML=`<div class="q">${r.ok?'✅':'📌'} Q${i+1} <span style="font-weight:400;color:#6b7280">(${r.q.cat})</span></div>
+      <div style="margin:4px 0">${r.q.html}</div>
+      <div class="meta">Your answer: <b>${r.raw}</b> &nbsp;•&nbsp; Correct: <b>${r.q.display}</b></div>
+      ${r.ok?'':'<div class="meta" style="margin-top:4px">💡 '+r.q.hint+'</div>'}`;
+    rv.appendChild(el);
+  });
+
+  show('results');
+  if(pct>=.6)bigConfetti();
+}
+function goHome(){renderHome();show('home')}
+function resetAll(){if(confirm('Reset ALL of Advik\'s progress, stars, and badges?')){S=Object.assign({},DEFAULT);localStorage.removeItem(KEY);save();renderHome()}}
+
+/* ============================================================
+   CONFETTI 🎊
+   ============================================================ */
+const cv=document.getElementById('confetti'),cx=cv.getContext('2d');
+let parts=[];
+function fit(){cv.width=innerWidth;cv.height=innerHeight}fit();addEventListener('resize',fit);
+function addParts(n,x,y,spread){const cols=['#f59e0b','#ec4899','#22c55e','#3b82f6','#a855f7','#ef4444'];
+  for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*spread,vy:Math.random()*-9-3,g:.28,col:pick(cols),s:Math.random()*7+4,rot:Math.random()*6,vr:(Math.random()-.5)*.4,life:90});}
+function burst(){addParts(28,cv.width/2,cv.height*.4,10)}
+function bigConfetti(){for(let k=0;k<5;k++)setTimeout(()=>addParts(50,Math.random()*cv.width,-10,6),k*180)}
+function loop(){cx.clearRect(0,0,cv.width,cv.height);
+  parts.forEach(p=>{p.vy+=p.g;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.life--;
+    cx.save();cx.translate(p.x,p.y);cx.rotate(p.rot);cx.fillStyle=p.col;cx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);cx.restore();});
+  parts=parts.filter(p=>p.life>0&&p.y<cv.height+20);
+  requestAnimationFrame(loop);}
+loop();
+
+/* boot */
+renderHome();show('home');
+</script>
+</body>
+</html>
