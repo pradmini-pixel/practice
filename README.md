@@ -1,4 +1,4 @@
-# Math Quest — Prealgebra Practice for Advik 🦉
+# Math Quest — Prealgebra Practice 🦉
 
 A kid-friendly, rewards-oriented web app that generates a **fresh 15-question
 prealgebra practice test every day**, modeled on the AoPS *Math 6: Prealgebra
@@ -24,7 +24,7 @@ The answer box is forgiving: fractions (`5/8`), mixed numbers (`1 1/12`),
 powers (`2^7`), and decimals are all accepted, and units like `dogs`/`mph`/`$`
 are ignored.
 
-## Rewards to keep Advik motivated
+## Rewards to keep practice fun
 - ⭐ **Stars** for every correct answer
 - 🔥 **10-day streak calendar** counting down to test day
 - 🏅 **XP & levels** with a progress bar
@@ -32,4 +32,4 @@ are ignored.
 - 🎊 **Confetti** and encouraging messages, plus a review of every question at the end
 
 > Tip: One test a day for the next 10 days. Wrong answers show a hint and the
-> correct solution so Advik can learn from each one.
+> correct solution to learn from each one.

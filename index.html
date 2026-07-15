@@ -143,7 +143,7 @@
     <div class="hero">
       <div class="mascot">🦉</div>
       <div>
-        <h1>Hi Advik! 👋</h1>
+        <h1>Hi there! 👋</h1>
         <p class="sub" id="homeSub">Ready to level up your prealgebra powers?</p>
       </div>
     </div>
@@ -230,7 +230,7 @@
     <button class="cta done" onclick="goHome()">🏠 Back to Home</button>
   </div>
 
-  <footer>Made for Advik • Practice a little every day 💪</footer>
+  <footer>Practice a little every day 💪</footer>
 </div>
 
 <script>
@@ -631,7 +631,7 @@ function finishTest(){
   if(pct>=.6)bigConfetti();
 }
 function goHome(){renderHome();show('home')}
-function resetAll(){if(confirm('Reset ALL of Advik\'s progress, stars, and badges?')){S=Object.assign({},DEFAULT);localStorage.removeItem(KEY);save();renderHome()}}
+function resetAll(){if(confirm('Reset ALL progress, stars, and badges?')){S=Object.assign({},DEFAULT);localStorage.removeItem(KEY);save();renderHome()}}
 
 /* ============================================================
    CONFETTI 🎊
