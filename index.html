@@ -67,9 +67,12 @@
   .mini h3{margin:0 0 8px;font-size:16px}
 
   .streakdays{display:flex;gap:6px;flex-wrap:wrap}
-  .day{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;background:#eef2ff;color:#94a3b8;border:1px solid var(--line)}
+  .day{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:#eef2ff;color:#6366f1;border:1px solid var(--line);cursor:pointer;transition:transform .1s,box-shadow .15s}
+  .day:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(99,102,241,.25);border-color:#a5b4fc}
+  .day:active{transform:scale(.94)}
   .day.done{background:var(--greenbg);color:var(--green);border-color:#86efac}
   .day.today{outline:3px solid #fcd34d;outline-offset:1px}
+  .daylabel{display:inline-block;background:#eef2ff;color:#4338ca;font-weight:800;font-size:14px;padding:6px 14px;border-radius:999px;margin-bottom:10px}
 
   .badges{display:flex;gap:10px;flex-wrap:wrap}
   .badge{width:60px;text-align:center;font-size:12px;color:var(--muted)}
@@ -167,8 +170,9 @@
 
     <div class="grid2">
       <div class="mini">
-        <h3>🔥 Your 10-Day Streak</h3>
+        <h3>📅 Pick a day</h3>
         <div class="streakdays" id="streakDays"></div>
+        <div class="sub" style="font-size:12px;margin-top:8px">Tap any day to take that test. ✅ = done</div>
       </div>
       <div class="mini">
         <h3>🏆 Best score</h3>
@@ -193,6 +197,7 @@
       <div class="progress"><div class="progfill" id="progFill"></div></div>
       <div class="qcount"><span id="qNum">1</span>/<span id="qTotal">15</span></div>
     </div>
+    <div class="daylabel" id="dayLabel">Day 1</div>
     <div class="cattag" id="catTag">Fundamentals</div>
     <div class="qtext" id="qText"></div>
     <div class="ansrow">
@@ -219,6 +224,7 @@
   <div id="results" class="card hidden">
     <div class="scorebig">
       <div class="mascot" id="resMascot" style="font-size:56px">🎉</div>
+      <div class="daylabel" id="resDay" style="margin:0 auto 8px">Day 1 complete!</div>
       <div class="scorenum" id="resScore">0/15</div>
       <div class="starsrow" id="resStars"></div>
       <p class="sub" id="resMsg"></p>
@@ -430,7 +436,8 @@ function isCorrect(userStr,q){
    STATE / STORAGE
    ============================================================ */
 const KEY='mathquest_advik_v1';
-const DEFAULT={stars:0,xp:0,level:1,streak:0,lastDay:null,days:[],best:0,tests:0,badges:{}};
+const DEFAULT={stars:0,xp:0,level:1,streak:0,lastDay:null,days:[],best:0,tests:0,badges:{},completedDays:{}};
+const PLAN_DAYS=10;
 let S=load();
 function load(){try{return Object.assign({},DEFAULT,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){return Object.assign({},DEFAULT)}}
 function save(){localStorage.setItem(KEY,JSON.stringify(S))}
@@ -452,7 +459,7 @@ function xpNeeded(lvl){return 100+ (lvl-1)*50}
 /* ============================================================
    RENDER HOME
    ============================================================ */
-let quiz=null,qi=0,answered=false,todayScore=0,sessionResults=[];
+let quiz=null,qi=0,answered=false,todayScore=0,sessionResults=[],currentDay=1;
 
 function renderHome(){
   document.getElementById('statStars').textContent=S.stars;
@@ -473,17 +480,17 @@ function renderHome(){
   document.getElementById('cdDays').textContent=left;
   document.getElementById('cdNote').textContent = left===0?"It's test day — you've got this! 🍀":(left<=3?"Almost there — keep sharp!":"One practice test a day keeps the worries away!");
 
-  // streak day boxes (10)
+  // day picker boxes (tap to take that day's test)
   const sd=document.getElementById('streakDays');sd.innerHTML='';
-  const done=new Set(S.days);
-  const startAnchor=new Date(S.testDate);startAnchor.setDate(startAnchor.getDate()-10);
-  for(let i=0;i<10;i++){
-    const d=new Date(startAnchor);d.setDate(d.getDate()+i+1);
-    const ds=d.toISOString().slice(0,10);
-    const el=document.createElement('div');el.className='day';
-    el.textContent=i+1;
-    if(done.has(ds))el.classList.add('done');
-    if(ds===todayStr())el.classList.add('today');
+  const suggested=nextDay();
+  for(let i=1;i<=PLAN_DAYS;i++){
+    const el=document.createElement('button');el.className='day';
+    const isDone=S.completedDays[i]!=null;
+    el.innerHTML=isDone?'✅':i;
+    el.title=isDone?`Day ${i} — done! Tap to retry`:`Day ${i} — tap to start`;
+    if(isDone)el.classList.add('done');
+    if(i===suggested)el.classList.add('today');
+    el.onclick=()=>startTest(i);
     sd.appendChild(el);
   }
 
@@ -494,24 +501,30 @@ function renderHome(){
     el.innerHTML=`<div class="ic">${b.ic}</div>${b.name}`;bc.appendChild(el);
   });
 
-  // already practiced today?
+  // start button targets the next unfinished day
   const btn=document.getElementById('startBtn');
-  if(S.days.includes(todayStr())){
-    btn.textContent='✅ Done today — Practice again';
+  const nd=nextDay();
+  const allDone=Object.keys(S.completedDays).length>=PLAN_DAYS;
+  if(allDone){
+    btn.textContent='🎓 All 10 done — Practice again';
     btn.classList.add('done');
   }else{
-    btn.textContent='🚀 Start Today\'s Test';
+    btn.textContent=`🚀 Start Day ${nd} Test`;
     btn.classList.remove('done');
   }
 }
+// first day that hasn't been completed yet (1..PLAN_DAYS), else 1
+function nextDay(){for(let i=1;i<=PLAN_DAYS;i++){if(S.completedDays[i]==null)return i}return 1}
 
 /* ============================================================
    QUIZ FLOW
    ============================================================ */
 function show(id){['home','quiz','results'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));window.scrollTo(0,0)}
-function startTest(){
+function startTest(day){
+  currentDay = day || nextDay();
   quiz=buildTest();qi=0;todayScore=0;sessionResults=[];
   document.getElementById('qTotal').textContent=quiz.length;
+  document.getElementById('dayLabel').textContent='Day '+currentDay;
   show('quiz');renderQ();
 }
 function renderQ(){
@@ -580,6 +593,9 @@ function finishTest(){
   while(S.xp>=xpNeeded(S.level)){S.xp-=xpNeeded(S.level);S.level++;leveled=true}
   S.tests++;
   if(todayScore>S.best)S.best=todayScore;
+  // mark this plan-day complete (keep the best score for the day)
+  if(S.completedDays[currentDay]==null || todayScore>S.completedDays[currentDay])
+    S.completedDays[currentDay]=todayScore;
 
   // streak: only advance once per day
   if(firstTimeToday){
@@ -605,6 +621,7 @@ function finishTest(){
   // render results
   const pct=todayScore/quiz.length;
   document.getElementById('resScore').textContent=`${todayScore}/${quiz.length}`;
+  document.getElementById('resDay').textContent=`Day ${currentDay} complete!`;
   const stars=pct>=.9?3:pct>=.6?2:pct>=.3?1:0;
   document.getElementById('resStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
   document.getElementById('resXp').textContent=xpGain;
