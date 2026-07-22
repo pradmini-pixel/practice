@@ -125,11 +125,43 @@
   footer{text-align:center;color:rgba(255,255,255,.85);font-size:13px;margin-top:24px}
   .link{background:none;color:#fff;text-decoration:underline;font-weight:700;font-size:14px}
 
+  /* radicals & complex fractions */
+  .rad{display:inline-flex;align-items:flex-start;white-space:nowrap}
+  .rad .radicand{border-top:2px solid currentColor;padding:1px 4px 0;margin-left:1px}
+  .cfrac .frac{font-size:.9em}
+  .cfrac .frac .n,.cfrac .frac .d{padding:2px 6px}
+
+  /* quiz meta: difficulty + combo */
+  .qmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .diffdots{display:inline-flex;gap:4px;align-items:center}
+  .diffdots .dot{width:9px;height:9px;border-radius:50%;background:#e5e7eb}
+  .diffdots .dot.on{background:#f59e0b}
+  .diffdots .lbl{font-size:12px;color:var(--muted);font-weight:700;margin-left:2px}
+  .combo{margin-left:auto;font-weight:900;font-size:15px;color:#f97316;background:#fff7ed;border:1px solid #fed7aa;padding:5px 12px;border-radius:999px;opacity:0;transform:scale(.6);transition:.25s cubic-bezier(.2,1.4,.4,1)}
+  .combo.show{opacity:1;transform:scale(1)}
+  .combo.big{animation:comboPulse .5s}
+  @keyframes comboPulse{0%{transform:scale(1)}40%{transform:scale(1.35) rotate(-3deg)}100%{transform:scale(1)}}
+  .reaction{font-size:26px;margin-right:6px;display:inline-block;animation:pop .4s}
+
+  /* mascot picker */
+  .mascotpick{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .mascotpick button{font-size:26px;width:46px;height:46px;border-radius:14px;background:#f9fafb;border:2px solid var(--line);transition:transform .1s,border-color .15s}
+  .mascotpick button:hover{transform:translateY(-2px)}
+  .mascotpick button.sel{border-color:#a855f7;background:var(--purplebg);box-shadow:0 4px 12px rgba(168,85,247,.25)}
+
+  /* floating background symbols */
+  #bgfx{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  #bgfx span{position:absolute;color:rgba(255,255,255,.13);font-weight:900;font-size:44px;animation:drift linear infinite}
+  @keyframes drift{0%{transform:translateY(20px) rotate(0)}100%{transform:translateY(-120vh) rotate(220deg)}}
+  .wrap{position:relative;z-index:1}
+  @media(prefers-reduced-motion:reduce){#bgfx span{animation:none;opacity:.08}.mascot{animation:none}}
+
   /* confetti */
   #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
 </style>
 </head>
 <body>
+<div id="bgfx"></div>
 <canvas id="confetti"></canvas>
 <div class="wrap">
   <div class="topbar">
@@ -144,10 +176,11 @@
   <!-- ================= HOME ================= -->
   <div id="home" class="card">
     <div class="hero">
-      <div class="mascot">🦉</div>
+      <div class="mascot" id="homeMascot">🦉</div>
       <div>
         <h1>Hi there! 👋</h1>
-        <p class="sub" id="homeSub">Ready to level up your prealgebra powers?</p>
+        <p class="sub" id="homeSub">Ready to level up your algebra powers?</p>
+        <div class="mascotpick" id="mascotPick"></div>
       </div>
     </div>
 
@@ -198,7 +231,11 @@
       <div class="qcount"><span id="qNum">1</span>/<span id="qTotal">15</span></div>
     </div>
     <div class="daylabel" id="dayLabel">Day 1</div>
-    <div class="cattag" id="catTag">Fundamentals</div>
+    <div class="qmeta">
+      <span class="cattag" id="catTag">Fundamentals</span>
+      <span class="diffdots" id="diffDots"></span>
+      <span class="combo" id="combo">🔥 Combo x2!</span>
+    </div>
     <div class="qtext" id="qText"></div>
     <div class="ansrow">
       <input class="answer" id="ansInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer…" onkeydown="if(event.key==='Enter')checkAnswer()">
@@ -261,13 +298,35 @@ function mixedStr(n,d){ // string like "1 1/12" or "5/8" or "3"
   if(w!==0 && r!==0) return `${w} ${r}/${d}`;
   return `${n}/${d}`;
 }
+function sqrtHTML(inner){return `<span class="rad">√<span class="radicand">${inner}</span></span>`}
+// render a linear expression: terms=[[coef,'x'],...] plus constant c  ->  "27x + 63", "25a - 2b", "-15r + 13", "13"
+function polyDisp(terms,c){
+  let parts=[];
+  terms.forEach(([co,v])=>{ if(co!==0){const mag=Math.abs(co)===1?'':Math.abs(co);parts.push({sign:co<0?'-':'+',body:mag+v});} });
+  if(c!==0||parts.length===0) parts.push({sign:c<0?'-':'+',body:''+Math.abs(c)});
+  return parts.map((p,i)=> i===0 ? (p.sign==='-'?'-':'')+p.body : ` ${p.sign} ${p.body}`).join('');
+}
+// safely evaluate a typed algebraic expression at given variable values
+function evalExpr(str,vals){
+  let s=(''+str).toLowerCase().replace(/\s+/g,'');
+  if(!s||!/^[0-9a-z+\-*/^().]+$/.test(s))return NaN;
+  s=s.replace(/\^/g,'**');
+  s=s.replace(/(\d)([a-z(])/g,'$1*$2');      // 3x, 3(
+  s=s.replace(/([a-z)])(\()/g,'$1*$2');       // x(, )(
+  s=s.replace(/(\))([a-z0-9])/g,'$1*$2');     // )x, )3
+  s=s.replace(/([a-z])(?=[a-z])/g,'$1*');     // ab -> a*b
+  let ok=true;
+  s=s.replace(/[a-z]/g,ch=>{ if(vals[ch]===undefined){ok=false;return '0';} return '('+vals[ch]+')'; });
+  if(!ok)return NaN;
+  try{const val=Function('"use strict";return('+s+')')();return (typeof val==='number'&&isFinite(val))?val:NaN;}catch(e){return NaN;}
+}
 
 /* ---- Fundamentals ---- */
 function gExpBasic(){
   const t=R(0,2);
   if(t===0){const n=R(3,7);return{cat:"Exponents",section:"Fundamentals",html:`Compute: 2<sup>${n}</sup>`,answer:2**n,display:`${2**n}`,hint:`2<sup>${n}</sup> means multiply 2 by itself ${n} times.`,tol:.001};}
   if(t===1){const a=R(3,7),b=R(2,a-1);return{cat:"Exponents",section:"Fundamentals",html:`Compute: (−${a})<sup>2</sup> − ${b}<sup>2</sup>`,answer:a*a-b*b,display:`${a*a-b*b}`,hint:`A negative squared is positive: (−${a})² = ${a*a}.`,tol:.001};}
-  const a=R(2,4);const val=1+1/(a*a);return{cat:"Exponents",section:"Fundamentals",html:`Compute: ${a}<sup>0</sup> + ${a}<sup>−2</sup>  &nbsp;(fraction or decimal)`,answer:val,display:mixedStr(a*a+1,a*a),hint:`Anything to the 0 power is 1. And ${a}<sup>−2</sup> = 1/${a*a}.`,tol:.01};
+  const a=R(2,4);const val=1+1/(a*a);return{cat:"Exponents",section:"Fundamentals",html:`Compute: ${a}<sup>0</sup> + ${a}<sup>−2</sup>  &nbsp;(fraction or decimal)`,answer:val,display:mixedStr(a*a+1,a*a),hint:`Anything to the 0 power is 1. And ${a}<sup>−2</sup> = 1/${a*a}.`,tol:.005};
 }
 function gExpLaws(){
   const t=R(0,2),a=R(2,6),b=R(2,5);
@@ -292,41 +351,41 @@ function gFrac(){
     const a=R(1,b-1),c=R(1,d),e=R(1,f-1);
     const L=lcm(lcm(b,d),f);
     const num=a*(L/b)+c*(L/d)-e*(L/f);
-    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${fracHTML(a,b)} + ${fracHTML(c,d)} − ${fracHTML(e,f)}`,answer:num/L,display:mixedStr(num,L),hint:`Find a common denominator (${L}), rewrite each fraction, then add & subtract.`,tol:.01};
+    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${fracHTML(a,b)} + ${fracHTML(c,d)} − ${fracHTML(e,f)}`,answer:num/L,display:mixedStr(num,L),hint:`Find a common denominator (${L}), rewrite each fraction, then add & subtract.`,tol:.002};
   }
   if(t===1){ // product of three
     const a=[R(1,4),R(2,5),R(1,4)],b=[R(2,5),R(3,6),R(2,6)];
     let n=a[0]*a[1]*a[2],d=b[0]*b[1]*b[2];
-    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${fracHTML(a[0],b[0])} · ${fracHTML(a[1],b[1])} · ${fracHTML(a[2],b[2])}`,answer:n/d,display:mixedStr(n,d),hint:`Multiply the tops together and the bottoms together, then simplify.`,tol:.01};
+    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${fracHTML(a[0],b[0])} · ${fracHTML(a[1],b[1])} · ${fracHTML(a[2],b[2])}`,answer:n/d,display:mixedStr(n,d),hint:`Multiply the tops together and the bottoms together, then simplify.`,tol:.002};
   }
   if(t===2){ // integer ÷ fraction
     const w=R(4,12),n=R(2,5),d=R(2,6);
-    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${w} ÷ ${fracHTML(n,d)}`,answer:w*d/n,display:mixedStr(w*d,n),hint:`Dividing by a fraction = multiplying by its flip: ${w} · ${fracHTML(d,n)}.`,tol:.01};
+    return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${w} ÷ ${fracHTML(n,d)}`,answer:w*d/n,display:mixedStr(w*d,n),hint:`Dividing by a fraction = multiplying by its flip: ${w} · ${fracHTML(d,n)}.`,tol:.002};
   }
   // mixed - mixed
   const w1=R(4,8),f1=R(1,3),w2=R(1,w1-1),f2=R(1,3),D=pick([3,4,6]);
   const n1=w1*D+f1, n2=w2*D+f2;
-  return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${w1}${fracHTML(f1,D)} − ${w2}${fracHTML(f2,D)}`,answer:(n1-n2)/D,display:mixedStr(n1-n2,D),hint:`Turn both into improper fractions over ${D}, subtract, then convert back.`,tol:.01};
+  return{cat:"Fractions",section:"Fundamentals",html:`Compute: ${w1}${fracHTML(f1,D)} − ${w2}${fracHTML(f2,D)}`,answer:(n1-n2)/D,display:mixedStr(n1-n2,D),hint:`Turn both into improper fractions over ${D}, subtract, then convert back.`,tol:.002};
 }
 function gDec2Frac(){
   const opts=[[0.5,1,2],[0.25,1,4],[0.75,3,4],[0.2,1,5],[0.6,3,5],[0.8,4,5],[0.125,1,8],[0.375,3,8],[0.625,5,8],[0.05,1,20],[0.15,3,20],[0.04,1,25],[0.35,7,20]];
   const o=pick(opts);
-  return{cat:"Decimals ↔ Fractions",section:"Fundamentals",html:`Convert to a fraction in simplest form: ${o[0]}`,answer:o[1]/o[2],display:`${o[1]}/${o[2]}`,hint:`Write it over a power of 10, then divide top & bottom by their GCF.`,tol:.005};
+  return{cat:"Decimals ↔ Fractions",section:"Fundamentals",html:`Convert to a fraction in simplest form: ${o[0]}`,answer:o[1]/o[2],display:`${o[1]}/${o[2]}`,hint:`Write it over a power of 10, then divide top & bottom by their GCF.`,tol:.001};
 }
 function gFrac2Dec(){
   const opts=[[13,4,3.25],[7,20,0.35],[1,8,0.125],[3,5,0.6],[9,4,2.25],[5,8,0.625],[7,10,0.7],[11,20,0.55],[3,8,0.375],[9,20,0.45]];
   const o=pick(opts);
-  return{cat:"Decimals ↔ Fractions",section:"Fundamentals",html:`Convert to a decimal: ${fracHTML(o[0],o[1])}`,answer:o[2],display:`${o[2]}`,hint:`Divide the top by the bottom (long division).`,tol:.005};
+  return{cat:"Decimals ↔ Fractions",section:"Fundamentals",html:`Convert to a decimal: ${fracHTML(o[0],o[1])}`,answer:o[2],display:`${o[2]}`,hint:`Divide the top by the bottom (long division).`,tol:.001};
 }
 function gLinear(){
   if(Math.random()<.5){ // ar - b = c - dr
     const r=R(1,6),a=R(2,5),d=R(2,5),b=R(1,9);
     const c=a*r-b+d*r; // ensures solution r
-    return{cat:"Linear Equations",section:"Fundamentals",html:`Solve for r: &nbsp; ${a}r − ${b} = ${c} − ${d}r`,answer:r,display:`r = ${r}`,hint:`Get all the r's on one side and the numbers on the other, then divide.`,tol:.01};
+    return{cat:"Linear Equations",section:"Fundamentals",html:`Solve for r: &nbsp; ${a}r − ${b} = ${c} − ${d}r`,answer:r,display:`r = ${r}`,hint:`Get all the r's on one side and the numbers on the other, then divide.`,tol:.002};
   }
   const x=R(2,9),a=R(2,5),b=R(1,12); // ax + b
   const c=a*x+b;
-  return{cat:"Linear Equations",section:"Fundamentals",html:`Solve for x: &nbsp; ${a}x + ${b} = ${c}`,answer:x,display:`x = ${x}`,hint:`Subtract ${b} from both sides, then divide by ${a}.`,tol:.01};
+  return{cat:"Linear Equations",section:"Fundamentals",html:`Solve for x: &nbsp; ${a}x + ${b} = ${c}`,answer:x,display:`x = ${x}`,hint:`Subtract ${b} from both sides, then divide by ${a}.`,tol:.002};
 }
 function gRatio(){
   const t=R(0,2);
@@ -334,10 +393,10 @@ function gRatio(){
     return{cat:"Ratios & Rates",section:"Fundamentals",html:`The ratio of dogs to cats at a shelter is ${a} to ${b}. If there are ${tot} animals in all, how many are dogs?`,answer:a*parts,display:`${a*parts} dogs`,hint:`There are ${a+b} equal parts. Each part = ${tot} ÷ ${a+b}.`,tol:.001};
   }
   if(t===1){const sec=pick([60,72,75,90,120]),hrs=2;const mi=hrs*3600/sec;
-    return{cat:"Ratios & Rates",section:"Fundamentals",html:`A train travels 1 mile every ${sec} seconds. How many miles will it travel in ${hrs} hours?`,answer:mi,display:`${mi} miles`,hint:`${hrs} hours = ${hrs*3600} seconds. Divide by ${sec}.`,tol:.01};
+    return{cat:"Ratios & Rates",section:"Fundamentals",html:`A train travels 1 mile every ${sec} seconds. How many miles will it travel in ${hrs} hours?`,answer:mi,display:`${mi} miles`,hint:`${hrs} hours = ${hrs*3600} seconds. Divide by ${sec}.`,tol:.002};
   }
   const rate=pick([3,4,5,6]),cost=R(2,6);const units=R(6,14);
-  return{cat:"Ratios & Rates",section:"Fundamentals",html:`If ${rate} notebooks cost $${rate*cost}, how much do ${units} notebooks cost (same price each)?`,answer:units*cost,display:`$${units*cost}`,hint:`First find the price of ONE notebook: $${rate*cost} ÷ ${rate} = $${cost}.`,tol:.01};
+  return{cat:"Ratios & Rates",section:"Fundamentals",html:`If ${rate} notebooks cost $${rate*cost}, how much do ${units} notebooks cost (same price each)?`,answer:units*cost,display:`$${units*cost}`,hint:`First find the price of ONE notebook: $${rate*cost} ÷ ${rate} = $${cost}.`,tol:.002};
 }
 
 /* ---- Problem Solving ---- */
@@ -364,7 +423,7 @@ function gAddNumDen(){
   let p,q,k;
   for(let tries=0;tries<40;tries++){q=R(2,5);p=R(1,q-1);k=(b*p-a*q)/(q-p);if(Number.isInteger(k)&&k>0){break}k=null}
   if(k===null){return gAddNumDen()}
-  return{cat:"Problem Solving",section:"Problem Solving",html:`Kayla adds the same number to both the top and bottom of ${fracHTML(a,b)}. Her new fraction equals ${fracHTML(p,q)}. What number did she add?`,answer:k,display:`${k}`,hint:`Let the number be n. Then (${a}+n)/(${b}+n) = ${p}/${q}. Cross-multiply and solve.`,tol:.01};
+  return{cat:"Problem Solving",section:"Problem Solving",html:`Kayla adds the same number to both the top and bottom of ${fracHTML(a,b)}. Her new fraction equals ${fracHTML(p,q)}. What number did she add?`,answer:k,display:`${k}`,hint:`Let the number be n. Then (${a}+n)/(${b}+n) = ${p}/${q}. Cross-multiply and solve.`,tol:.002};
 }
 function gWorkRate(){
   const w=R(4,6),d=R(12,24); // total = w*d
@@ -372,7 +431,7 @@ function gWorkRate(){
   let a,f,t,rem;
   for(let i=0;i<50;i++){a=R(2,4);f=R(4,10);t=a+pick([6,8,10,11]);rem=total-a*f;if(rem>0 && rem%t===0){break}rem=-1}
   if(rem<=0)return gWorkRate();
-  return{cat:"Problem Solving",section:"Problem Solving",html:`${w} workers can build a road in ${d} days (all work equally fast). ${a} workers work for ${f} days, then ${t-a} more join. How many more days to finish?`,answer:rem/t,display:`${rem/t} more days`,hint:`Total work = ${w}×${d} = ${total} worker-days. Done so far = ${a}×${f}. Divide what's left by ${t} workers.`,tol:.01};
+  return{cat:"Problem Solving",section:"Problem Solving",html:`${w} workers can build a road in ${d} days (all work equally fast). ${a} workers work for ${f} days, then ${t-a} more join. How many more days to finish?`,answer:rem/t,display:`${rem/t} more days`,hint:`Total work = ${w}×${d} = ${total} worker-days. Done so far = ${a}×${f}. Divide what's left by ${t} workers.`,tol:.002};
 }
 function gAvgSpeed(){
   const pairs=[[50,40],[60,40],[30,60],[45,55],[40,60],[50,75]];
@@ -388,18 +447,125 @@ function gDivisible(){
   return{cat:"Problem Solving",section:"Problem Solving",html:`The number ${known[0]}_${known[1]} (a 3-digit number with a missing middle digit) is divisible by ${div}. What is the smallest missing digit that works?`,answer:m,display:`${m}`,hint:`A number is divisible by ${div} when its digit sum is divisible by ${div}. So far the digits add to ${s}.`,tol:.001};
 }
 
-const FUND=[gExpBasic,gExpLaws,gGCDLCM,gFrac,gFrac,gDec2Frac,gFrac2Dec,gLinear,gRatio];
-const PROB=[gSeries,gPowerOf4,gNumberPuzzle,gAddNumDen,gWorkRate,gAvgSpeed,gDivisible];
+/* ---- Algebra: working with variables (answers are expressions) ---- */
+function gExpand(){
+  const a=R(2,9),b=R(2,9),c=R(2,12),v=pick(['x','y','n','t']),neg=Math.random()<.4;
+  const co=a*b,k=a*(neg?-c:c);
+  return{cat:"Algebra",section:"Fundamentals",diff:1,html:`Expand: ${a}(${b}${v} ${neg?'−':'+'} ${c})`,
+    isExpr:true,vars:[v],fn:V=>co*V[v]+k,display:polyDisp([[co,v]],k),
+    hint:`Multiply the ${a} by BOTH terms inside: ${a}·${b}${v} = ${co}${v}, and ${a}·${c} = ${a*c}.`};
+}
+function gSimplifyLike(){
+  const v1=pick(['a','x','m']),v2=pick(['b','y','n'].filter(z=>z!==v1));
+  const p=R(2,9),q=R(2,9)*pick([1,-1]),m=R(2,5),n=R(2,6),k=R(1,5)*pick([1,-1]);
+  const ca=p+m*n,cb=q+m*k;
+  return{cat:"Algebra",section:"Fundamentals",diff:2,
+    html:`Simplify: ${polyDisp([[p,v1],[q,v2]],0)} + ${m}(${polyDisp([[n,v1],[k,v2]],0)})`,
+    isExpr:true,vars:[v1,v2],fn:V=>ca*V[v1]+cb*V[v2],display:polyDisp([[ca,v1],[cb,v2]],0),
+    hint:`Distribute the ${m}, then combine the ${v1}-terms together and the ${v2}-terms together.`};
+}
+function gSimplifyNeg(){
+  const v=pick(['a','x','n','y']),A=R(1,4),B=R(2,8),C=R(1,9);
+  return{cat:"Algebra",section:"Fundamentals",diff:2,
+    html:`Simplify: ${A===1?'':A}${v} − (−${B}${v} − ${C})`,
+    isExpr:true,vars:[v],fn:V=>(A+B)*V[v]+C,display:polyDisp([[A+B,v]],C),
+    hint:`Subtracting a group flips every sign inside: −(−${B}${v} − ${C}) becomes +${B}${v} + ${C}.`};
+}
+function gSimplifyTwoDist(){
+  const v=pick(['r','x','t']),m=R(2,4),c=R(3,7),d=R(2,4),n=R(2,4),e=R(2,4),f=R(1,4);
+  const cv=n*e-m*d,k=m*c-n*f;
+  return{cat:"Algebra",section:"Fundamentals",diff:3,
+    html:`Simplify: ${m}(${c} − ${d}${v}) − ${n}(−${e}${v} + ${f})`,
+    isExpr:true,vars:[v],fn:V=>cv*V[v]+k,display:polyDisp([[cv,v]],k),
+    hint:`Distribute both. Watch the signs on the second group: −${n}·(−${e}${v}) = +${n*e}${v}.`};
+}
+/* ---- Percents & complex fractions ---- */
+function gPercentOf(){
+  const o=pick([[17,20],[13,20],[9,20],[3,20],[19,20],[9,25],[21,25],[7,25],[3,50],[7,50],[11,50],[13,50],[9,10],[7,10]]);
+  const pct=o[0]/o[1]*100;
+  return{cat:"Percents",section:"Fundamentals",diff:2,html:`${o[0]} is what percent of ${o[1]}?`,answer:pct,display:`${pct}%`,
+    hint:`"What percent" = (part ÷ whole) × 100 = (${o[0]} ÷ ${o[1]}) × 100.`,tol:.1};
+}
+function gComplexFrac(){
+  const b=pick([2,3,4,6]),a=R(1,b*2),d=pick([2,3,4,5]),c=R(1,d*2);
+  return{cat:"Fractions",section:"Fundamentals",diff:2,
+    html:`Write in simplest form: <span class="cfrac">${fracHTML(fracHTML(a,b),fracHTML(c,d))}</span>`,
+    answer:(a/b)/(c/d),display:mixedStr(a*d,b*c),
+    hint:`A fraction over a fraction = top ÷ bottom = ${fracHTML(a,b)} × ${fracHTML(d,c)} (flip the bottom one).`,tol:.001};
+}
+function gDec4Frac(){
+  const o=pick([[0.6144,384,625],[0.128,16,125],[0.104,13,125],[0.336,42,125],[0.1875,3,16],[0.2048,128,625],[0.045,9,200],[0.685,137,200],[0.024,3,125]]);
+  return{cat:"Decimals ↔ Fractions",section:"Fundamentals",diff:3,html:`Convert ${o[0]} to a fraction in simplest form.`,
+    answer:o[1]/o[2],display:`${o[1]}/${o[2]}`,hint:`Write it over a power of 10 (${o[0]} = ${Math.round(o[0]*1e4)}/10000), then reduce by dividing out common factors.`,tol:.0002};
+}
+/* ---- Square roots ---- */
+function gSqrtPerfect(){
+  const n=R(4,15);
+  return{cat:"Square Roots",section:"Fundamentals",diff:1,html:`Simplify: ${sqrtHTML(n*n)}`,answer:n,display:`${n}`,
+    hint:`Ask: what number times itself equals ${n*n}?`,tol:.001};
+}
+function gSqrtQuotient(){
+  const r=R(2,9),B=pick([2,3,5,6,7]),A=r*r*B;
+  return{cat:"Square Roots",section:"Fundamentals",diff:3,html:`Simplify: ${fracHTML(sqrtHTML(A),sqrtHTML(B))}`,answer:r,display:`${r}`,
+    hint:`${sqrtHTML(A)} ÷ ${sqrtHTML(B)} = ${sqrtHTML(A+' ÷ '+B)} = ${sqrtHTML(A/B)}.`,tol:.001};
+}
+function gSqrtMixed(){
+  const q=pick([2,3,4]);let p;do{p=R(q+1,3*q)}while(gcd(p,q)!==1);
+  const num=p*p,den=q*q,whole=Math.trunc(num/den),rem=num-whole*den;
+  const inside=whole+fracHTML(rem,den);
+  return{cat:"Square Roots",section:"Fundamentals",diff:3,html:`Simplify: ${sqrtHTML(inside)}`,answer:p/q,display:`${p}/${q}`,
+    hint:`First turn the mixed number into an improper fraction (${num}/${den}), then take the square root of the top and the bottom.`,tol:.002};
+}
+/* ---- More problem solving ---- */
+function gGroupFraction(){
+  const q=pick([5,4,3]),p=R(1,q-1),r=pick([2,3,4]),s=pick([2,3,4,5]);
+  const num=p*s+(q-p)*r,den=r*s*q;
+  return{cat:"Problem Solving",section:"Problem Solving",diff:3,
+    html:`${fracHTML(p,q)} of the students are boys (the rest are girls). ${fracHTML(1,s)} of the girls and ${fracHTML(1,r)} of the boys have blond hair. What fraction of ALL the students have blond hair?`,
+    answer:num/den,display:mixedStr(num,den),
+    hint:`Blond boys = ${fracHTML(1,r)} × ${fracHTML(p,q)}, blond girls = ${fracHTML(1,s)} × ${fracHTML(q-p,q)}. Add them.`,tol:.001};
+}
+function gRectTriangle(){
+  return{cat:"Geometry",section:"Problem Solving",diff:3,
+    html:`In rectangle ABCD, point X is the midpoint of side AD and point Y is the midpoint of side CD. What fraction of the rectangle's area is covered by triangle AXY?`,
+    answer:1/8,display:`1/8`,
+    hint:`Let the rectangle be width w and height h. XA = h/2 and the triangle's base-to-Y distance is w/2, so its area is ½·(h/2)·(w/2) = wh/8.`,tol:.005};
+}
+function gPercentOverlap(){
+  let S,p,q,overlap,math;
+  for(let i=0;i<200;i++){
+    S=pick([10,15,20,25,30]);q=pick([.4,.5,.6,.75,.8]);p=pick([.2,.25,.3,.4,.5,.6]);
+    overlap=q*S;math=overlap/p;
+    if(Number.isInteger(overlap)&&Number.isInteger(math)&&math!==S&&p<q){break}math=null;
+  }
+  if(math===null)return gPercentOverlap();
+  return{cat:"Problem Solving",section:"Problem Solving",diff:3,
+    html:`At a school, ${p*100}% of the Math Club students are also in the Science Club, and ${q*100}% of the Science Club students are also in the Math Club. There are ${S} students in the Science Club. How many students are in the Math Club?`,
+    answer:math,display:`${math}`,
+    hint:`Students in both = ${q*100}% of ${S} = ${overlap}. Those ${overlap} are also ${p*100}% of the Math Club, so Math Club = ${overlap} ÷ ${p}.`,tol:.002};
+}
 
+const FUND=[gExpBasic,gExpLaws,gGCDLCM,gFrac,gDec2Frac,gFrac2Dec,gLinear,gRatio,
+  gExpand,gSimplifyLike,gSimplifyNeg,gSimplifyTwoDist,gPercentOf,gComplexFrac,gDec4Frac,
+  gSqrtPerfect,gSqrtQuotient,gSqrtMixed];
+const PROB=[gSeries,gPowerOf4,gNumberPuzzle,gAddNumDen,gWorkRate,gAvgSpeed,gDivisible,
+  gGroupFraction,gRectTriangle,gPercentOverlap];
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function buildTest(){
-  const qs=[];
-  // 9 fundamentals (guarantee variety), 6 problem solving
-  const fpool=[gExpBasic,gExpLaws,gGCDLCM,gFrac,gDec2Frac,gFrac2Dec,gLinear,gRatio,pick(FUND)];
-  const ppool=[...PROB];
-  // shuffle problem-solving, take 6
-  ppool.sort(()=>Math.random()-.5);
-  fpool.forEach(g=>qs.push(g()));
-  ppool.slice(0,6).forEach(g=>qs.push(g()));
+  // 9 unique fundamentals + 6 unique problem-solving, no generator repeated, no duplicate prompts
+  const qs=[],seen=new Set();
+  function take(pool,count){
+    let added=0;
+    for(const g of shuffle(pool)){
+      if(added>=count)break;
+      let q;for(let t=0;t<6;t++){q=g();if(!seen.has(q.html))break}
+      if(seen.has(q.html))continue;
+      seen.add(q.html);qs.push(q);added++;
+    }
+  }
+  take(FUND,9);
+  take(PROB,6);
   return qs;
 }
 
@@ -408,8 +574,8 @@ function buildTest(){
    ============================================================ */
 function parseVal(s){
   if(s==null)return NaN;
-  s=(''+s).trim().toLowerCase().replace(/\s+/g,' ').replace(/[$,]/g,'');
-  s=s.replace(/\s*(miles?|mph|dogs?|cats?|days?|notebooks?)\b/g,'');
+  s=(''+s).trim().toLowerCase().replace(/\s+/g,' ').replace(/[$,%]/g,'');
+  s=s.replace(/\s*(miles?|mph|dogs?|cats?|days?|notebooks?|students?|boys?|percent)\b/g,'');
   s=s.replace(/^[a-z]\s*=\s*/,'');       // strip "r = " / "x=" prefix
   s=s.replace(/\(=.*$/,'').trim();        // strip trailing "(= ...)" note
   s=s.replace(/[a-z]+$/,'').trim();       // strip any trailing units/words
@@ -427,6 +593,16 @@ function parseVal(s){
   return isNaN(v)?NaN:v;
 }
 function isCorrect(userStr,q){
+  if(q.isExpr){
+    // compare typed expression to the correct one at several random points
+    // (evaluating at multiple points distinguishes a real match from a lucky single value)
+    for(let t=0;t<4;t++){
+      const vals={};q.vars.forEach((vr,i)=>vals[vr]=2+t+i*3);
+      const got=evalExpr(userStr,vals);
+      if(isNaN(got)||Math.abs(got-q.fn(vals))>1e-6)return false;
+    }
+    return true;
+  }
   const v=parseVal(userStr);
   if(isNaN(v))return false;
   return Math.abs(v-q.answer)<=(q.tol||.01);
@@ -436,8 +612,19 @@ function isCorrect(userStr,q){
    STATE / STORAGE
    ============================================================ */
 const KEY='mathquest_advik_v1';
-const DEFAULT={stars:0,xp:0,level:1,streak:0,lastDay:null,days:[],best:0,tests:0,badges:{},completedDays:{}};
+const DEFAULT={stars:0,xp:0,level:1,streak:0,lastDay:null,days:[],best:0,tests:0,badges:{},completedDays:{},mascot:'🦉'};
 const PLAN_DAYS=10;
+const TEST_DATE='2026-07-27';                     // the real test day
+const MASCOTS=['🦉','🦊','🤖','🐱','🐉','🦄'];
+// icon + accent colour per topic (drives the category chip)
+const CATMETA={
+  'Exponents':['⚡','#d97706','#fef3c7'],'Exponent Laws':['⚡','#d97706','#fef3c7'],
+  'Number Theory':['🔢','#0369a1','#e0f2fe'],'Fractions':['🍕','#be185d','#fce7f3'],
+  'Decimals ↔ Fractions':['🔁','#7c3aed','#ede9fe'],'Percents':['％','#047857','#d1fae5'],
+  'Linear Equations':['⚖️','#1d4ed8','#dbeafe'],'Algebra':['🔤','#6d28d9','#ede9fe'],
+  'Square Roots':['√','#0e7490','#cffafe'],'Ratios & Rates':['📊','#c2410c','#ffedd5'],
+  'Geometry':['📐','#be123c','#ffe4e6'],'Problem Solving':['🧩','#4338ca','#e0e7ff']
+};
 let S=load();
 function load(){try{return Object.assign({},DEFAULT,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){return Object.assign({},DEFAULT)}}
 function save(){localStorage.setItem(KEY,JSON.stringify(S))}
@@ -451,6 +638,7 @@ const BADGES=[
   {id:'streak5',ic:'⚡',name:'5-Day Streak'},
   {id:'streak7',ic:'👑',name:'7-Day Streak'},
   {id:'sharp',ic:'🎯',name:'Sharp (≥12)'},
+  {id:'combo',ic:'🔥',name:'Combo x5'},
   {id:'level5',ic:'🚀',name:'Level 5'},
 ];
 
@@ -459,7 +647,7 @@ function xpNeeded(lvl){return 100+ (lvl-1)*50}
 /* ============================================================
    RENDER HOME
    ============================================================ */
-let quiz=null,qi=0,answered=false,todayScore=0,sessionResults=[],currentDay=1;
+let quiz=null,qi=0,answered=false,todayScore=0,sessionResults=[],currentDay=1,combo=0,bestCombo=0;
 
 function renderHome(){
   document.getElementById('statStars').textContent=S.stars;
@@ -473,12 +661,20 @@ function renderHome(){
   document.getElementById('bestScore').textContent=S.tests?`${S.best}/15`:'—';
   document.getElementById('testsTaken').textContent=`${S.tests} test${S.tests===1?'':'s'} taken`;
 
-  // countdown: test day = 10 days from first ever day, but simpler: fixed target based on install
-  if(!S.testDate){const t=new Date();t.setDate(t.getDate()+10);S.testDate=t.toISOString().slice(0,10);save();}
-  let left=daysBetween(todayStr(),S.testDate);
+  // countdown to the real test day (July 27)
+  let left=daysBetween(todayStr(),TEST_DATE);
   if(left<0)left=0;
   document.getElementById('cdDays').textContent=left;
   document.getElementById('cdNote').textContent = left===0?"It's test day — you've got this! 🍀":(left<=3?"Almost there — keep sharp!":"One practice test a day keeps the worries away!");
+
+  // mascot + picker
+  document.getElementById('homeMascot').textContent=S.mascot;
+  const mp=document.getElementById('mascotPick');mp.innerHTML='';
+  MASCOTS.forEach(m=>{
+    const b=document.createElement('button');b.textContent=m;b.className=(m===S.mascot?'sel':'');
+    b.title='Choose your buddy';b.onclick=()=>{S.mascot=m;save();renderHome()};
+    mp.appendChild(b);
+  });
 
   // day picker boxes (tap to take that day's test)
   const sd=document.getElementById('streakDays');sd.innerHTML='';
@@ -522,17 +718,31 @@ function nextDay(){for(let i=1;i<=PLAN_DAYS;i++){if(S.completedDays[i]==null)ret
 function show(id){['home','quiz','results'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));window.scrollTo(0,0)}
 function startTest(day){
   currentDay = day || nextDay();
-  quiz=buildTest();qi=0;todayScore=0;sessionResults=[];
+  quiz=buildTest();qi=0;todayScore=0;sessionResults=[];combo=0;bestCombo=0;
   document.getElementById('qTotal').textContent=quiz.length;
   document.getElementById('dayLabel').textContent='Day '+currentDay;
   show('quiz');renderQ();
+}
+function updateCombo(pulse){
+  const el=document.getElementById('combo');
+  if(combo>=2){el.textContent=`🔥 Combo x${combo}!`;el.classList.add('show');if(pulse){el.classList.remove('big');void el.offsetWidth;el.classList.add('big');}}
+  else{el.classList.remove('show','big');}
 }
 function renderQ(){
   answered=false;
   const q=quiz[qi];
   document.getElementById('qNum').textContent=qi+1;
   document.getElementById('progFill').style.width=(qi/quiz.length*100)+'%';
-  document.getElementById('catTag').textContent=q.section+' • '+q.cat;
+  // category chip with icon + topic colour
+  const meta=CATMETA[q.cat]||['🧩','#4338ca','#e0e7ff'];
+  const tag=document.getElementById('catTag');
+  tag.textContent=meta[0]+' '+q.cat;
+  tag.style.color=meta[1];tag.style.background=meta[2];
+  // difficulty dots
+  const diff=q.diff||2;
+  document.getElementById('diffDots').innerHTML=
+    [1,2,3].map(n=>`<span class="dot${n<=diff?' on':''}"></span>`).join('')+
+    `<span class="lbl">${['','Easy','Medium','Tricky'][diff]}</span>`;
   document.getElementById('qText').innerHTML=q.html;
   const inp=document.getElementById('ansInput');inp.value='';inp.disabled=false;inp.focus();
   document.getElementById('feedback').className='feedback';
@@ -542,6 +752,7 @@ function renderQ(){
   document.getElementById('nextBtn').classList.add('hidden');
   document.getElementById('hintBtn').classList.remove('hidden');
   document.getElementById('hintBox').classList.add('hidden');
+  updateCombo(false);
 }
 function ins(c){const i=document.getElementById('ansInput');i.value+=c;i.focus()}
 function clearAns(){const i=document.getElementById('ansInput');i.value='';i.focus()}
@@ -559,14 +770,20 @@ function checkAnswer(){
   document.getElementById('skipBtn').classList.add('hidden');
   document.getElementById('nextBtn').classList.remove('hidden');
   if(ok){
-    todayScore++;
-    S.stars+=10;save();document.getElementById('statStars').textContent=S.stars;
+    todayScore++;combo++;if(combo>bestCombo)bestCombo=combo;
+    const bonus=combo>=5?15:combo>=3?5:0;      // combo bonus stars
+    const gain=10+bonus;
+    S.stars+=gain;save();document.getElementById('statStars').textContent=S.stars;
+    const react=combo>=5?'🤩':combo>=3?'😄':'🎉';
+    const praise=combo>=5?'ON FIRE!':combo>=3?'Great streak!':pick(['Correct!','Nailed it!','Awesome!','Yes!']);
     fb.className='feedback good';
-    fb.innerHTML=pick(['🎉 Correct! +10 ⭐','✅ Nailed it! +10 ⭐','🌟 Awesome! +10 ⭐','💪 Yes! +10 ⭐'])+`<br><span class="ans">Answer: ${q.display}</span>`;
-    burst();
+    fb.innerHTML=`<span class="reaction">${react}</span>${praise} +${gain} ⭐${bonus?` <b>(+${bonus} combo bonus!)</b>`:''}<br><span class="ans">Answer: ${q.display}</span>`;
+    updateCombo(true);
+    combo>=3?bigConfetti():burst();
   }else{
+    combo=0;updateCombo(false);
     fb.className='feedback bad';
-    fb.innerHTML=`Not quite — that's okay, mistakes help us learn!<br><span class="ans">Correct answer: ${q.display}</span>`;
+    fb.innerHTML=`<span class="reaction">🌱</span>Not quite — that's okay, mistakes help us learn!<br><span class="ans">Correct answer: ${q.display}</span>`;
   }
   sessionResults.push({q,raw,ok});
 }
@@ -612,6 +829,7 @@ function finishTest(){
   grant('first');
   if(todayScore===quiz.length)grant('perfect');
   if(todayScore>=12)grant('sharp');
+  if(bestCombo>=5)grant('combo');
   if(S.streak>=3)grant('streak3');
   if(S.streak>=5)grant('streak5');
   if(S.streak>=7)grant('streak7');
@@ -629,6 +847,7 @@ function finishTest(){
   document.getElementById('resMascot').textContent=mascot;
   document.getElementById('resMsg').textContent =
     (leveled?`⬆️ Level up! You're now Level ${S.level}! `:'')+
+    (bestCombo>=3?`🔥 Best combo this test: x${bestCombo}. `:'')+
     (pct>=.9?'Outstanding work — you\'re test-ready!':pct>=.6?'Great job! A little more practice and you\'ll ace it.':pct>=.3?'Nice effort! Review the tricky ones below.':'Every expert started here. Try again tomorrow — you\'ll improve!');
 
   const nb=document.getElementById('newBadges');
@@ -666,6 +885,21 @@ function loop(){cx.clearRect(0,0,cv.width,cv.height);
   parts=parts.filter(p=>p.life>0&&p.y<cv.height+20);
   requestAnimationFrame(loop);}
 loop();
+
+/* floating background symbols */
+(function bgfx(){
+  const host=document.getElementById('bgfx');const syms=['➕','➖','✖️','➗','√','π','∑','½','x','y','⚡','%'];
+  const n=window.innerWidth<560?9:16;
+  for(let i=0;i<n;i++){
+    const s=document.createElement('span');s.textContent=pick(syms);
+    s.style.left=(Math.random()*100)+'%';
+    s.style.fontSize=(26+Math.random()*40)+'px';
+    s.style.bottom='-60px';
+    s.style.animationDuration=(16+Math.random()*22)+'s';
+    s.style.animationDelay=(-Math.random()*30)+'s';
+    host.appendChild(s);
+  }
+})();
 
 /* boot */
 renderHome();show('home');
